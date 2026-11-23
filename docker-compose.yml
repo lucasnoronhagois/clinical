@@ -1,0 +1,54 @@
+# Sobe banco, API e front com a API real.
+#   docker compose up --build
+# Front: http://localhost:8080  API: http://localhost:3000/api/health
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: clinicalcare
+      MYSQL_USER: clinicalcare
+      MYSQL_PASSWORD: clinicalcare
+      MYSQL_ROOT_PASSWORD: clinicalcare-root
+    ports:
+      - "3307:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uclinicalcare", "-pclinicalcare"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      JWT_SECRET: docker-local-only-secret-change-me
+      JWT_EXPIRES_IN: 8h
+      CORS_ORIGIN: http://localhost:8080
+      DB_DIALECT: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: clinicalcare
+      DB_USER: clinicalcare
+      DB_PASS: clinicalcare
+      SEED_DEMO_DATA: "true"
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:3000
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  db-data:

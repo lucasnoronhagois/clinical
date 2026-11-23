@@ -1,0 +1,5 @@
+process.env.NODE_ENV = 'test';
+process.env.DB_DIALECT = 'sqlite';
+process.env.DB_STORAGE = ':memory:';
+process.env.JWT_SECRET = 'test-secret-not-for-production';
+process.env.CORS_ORIGIN = '';
