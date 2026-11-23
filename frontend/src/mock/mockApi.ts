@@ -3,6 +3,7 @@
  * mesmas rotas, formatos JSON, códigos de status, mensagens de erro e regras de acesso por perfil.
  * É independente de transporte: o Mock Service Worker (navegador) e os testes a expõem via HTTP.
  */
+import { canFinalizeAttendance, finishForbiddenMessage } from '../lib/permissions';
 import type { AttendanceStatus, UserRole } from '../types';
 import type { MockAttendance, MockPatient, MockUser } from './fixtures';
 import type { MockStore } from './store';
@@ -512,6 +513,7 @@ export function createMockApi(store: MockStore, clock: () => Date = () => new Da
         if (attendance.confirmed_at) throw new HttpError(409, 'Atendimento já confirmado.');
         Object.assign(attendance, { confirmed_at: clock().toISOString(), confirmed_by: user.id });
       } else if (method === 'PUT' && action === 'finish') {
+        if (!canFinalizeAttendance(user, attendance)) throw new HttpError(403, finishForbiddenMessage(user));
         if (attendance.end_date) throw new HttpError(409, 'Atendimento já finalizado.');
         if (!attendance.confirmed_at) throw new HttpError(409, 'Confirme o atendimento antes de finalizar.');
         attendance.end_date = clock().toISOString();

@@ -15,6 +15,47 @@ describe('atendimentos', () => {
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Confirmar' }).length).toBe(before - 1));
   });
 
+  it('pagina os atendimentos e a recepção não vê o botão Finalizar', async () => {
+    const user = userEvent.setup();
+    signIn({ id: 5, name: 'Carla Nogueira', role: 'RECEPTIONIST' });
+    renderApp('/attendances');
+    expect(await screen.findByText('Mostrando 1 a 20 de 230')).toBeInTheDocument();
+    expect(screen.getByText('Página 1 de 12')).toBeInTheDocument();
+    expect(screen.getAllByRole('row').slice(1)).toHaveLength(20);
+    expect(screen.queryAllByRole('button', { name: 'Finalizar' })).toHaveLength(0);
+
+    await user.click(screen.getByRole('button', { name: 'Próxima página' }));
+    expect(await screen.findByText('Mostrando 21 a 40 de 230')).toBeInTheDocument();
+    expect(screen.getByText('Página 2 de 12')).toBeInTheDocument();
+    expect(screen.queryAllByRole('button', { name: 'Finalizar' })).toHaveLength(0);
+  });
+
+  it('médico vê Finalizar só nos próprios atendimentos confirmados', async () => {
+    const user = userEvent.setup();
+    signIn({ id: 2, name: 'Dra. Marina Albuquerque', role: 'DOCTOR' });
+    renderApp('/attendances');
+    await screen.findByText(/Mostrando 1 a 20 de /);
+    await user.selectOptions(screen.getByLabelText('Filtrar por status'), 'confirmed');
+    await user.selectOptions(screen.getByLabelText('Itens por página'), '100');
+    const status = await screen.findByText(/Mostrando 1 a /);
+    expect(status).toBeInTheDocument();
+
+    const finishButtons = screen.queryAllByRole('button', { name: 'Finalizar' });
+    expect(finishButtons.length).toBeGreaterThan(0);
+    for (const button of finishButtons) {
+      const row = button.closest('tr');
+      expect(row).toHaveTextContent('Dra. Marina Albuquerque');
+    }
+
+    const otherRows = screen
+      .getAllByRole('row')
+      .slice(1)
+      .filter((row) => !row.textContent?.includes('Dra. Marina Albuquerque'));
+    for (const row of otherRows) {
+      expect(within(row).queryByRole('button', { name: 'Finalizar' })).not.toBeInTheDocument();
+    }
+  });
+
   it('visitante não vê ações de escrita', async () => {
     signIn({ id: 7, name: 'Visitante Demo', role: 'GUEST' }, 1);
     renderApp('/attendances');

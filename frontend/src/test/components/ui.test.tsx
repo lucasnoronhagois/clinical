@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ThemeToggle } from '../../components/layout/ThemeToggle';
-import { ConfirmDialog, EmptyState, Field, StatusBadge } from '../../components/ui';
+import { ConfirmDialog, EmptyState, Field, PasswordInput, StatusBadge } from '../../components/ui';
 import { renderWithProviders } from '../utils';
 
 describe('componentes de interface', () => {
@@ -48,6 +48,22 @@ describe('componentes de interface', () => {
     await user.click(screen.getByRole('button', { name: 'Ativar tema escuro' }));
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(localStorage.getItem('clinicalcare.theme')).toBe('dark');
-    expect(screen.getByRole('button', { name: 'Ativar tema claro' })).toBeInTheDocument();
+    const toggle = screen.getByRole('button', { name: 'Ativar tema claro' });
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toHaveAttribute('title', 'Ativar tema claro');
+  });
+
+  it('botões só com ícone expõem nome acessível e dica visível', async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <PasswordInput aria-label="Senha" />
+      </div>,
+    );
+    const show = screen.getByRole('button', { name: 'Mostrar senha' });
+    expect(show).toHaveAttribute('title', 'Mostrar senha');
+    await user.click(show);
+    const hide = screen.getByRole('button', { name: 'Ocultar senha' });
+    expect(hide).toHaveAttribute('title', 'Ocultar senha');
   });
 });

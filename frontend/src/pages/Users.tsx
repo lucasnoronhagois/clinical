@@ -4,9 +4,11 @@ import { Avatar, Button, ConfirmDialog, EmptyState, ErrorState, PageHeader, Tabl
 import { useSession } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { UserFormModal } from '../features/UserFormModal';
-import { useApi } from '../hooks/useApi';
+import { useUsers } from '../hooks/queries';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage } from '../lib/api';
+import { removeUserFromCache, upsertUserInCache } from '../lib/queryApi';
 import { formatPhone } from '../lib/format';
 import { getRoleLabel } from '../lib/permissions';
 import { normalizeText } from '../lib/text';
@@ -18,7 +20,8 @@ export default function Users() {
   useDocumentTitle('Equipe');
   const { user: me, companyId } = useSession();
   const toast = useToast();
-  const { data, loading, error, reload, setData } = useApi<{ users: User[] }>('/users', { company_id: companyId });
+  const { data, loading, error, reload } = useUsers(companyId);
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -28,7 +31,7 @@ export default function Users() {
 
   const users = useMemo(() => {
     const term = normalizeText(query);
-    return (data?.users ?? []).filter(
+    return (data ?? []).filter(
       (u) =>
         (!role || u.role === role) &&
         (!term || normalizeText(u.name).includes(term) || normalizeText(u.email).includes(term) || normalizeText(u.login).includes(term)),
@@ -40,7 +43,7 @@ export default function Users() {
     setBusy(true);
     try {
       await api.delete(`/users/${deleting.id}`);
-      setData((current) => (current ? { users: current.users.filter((u) => u.id !== deleting.id) } : current));
+      removeUserFromCache(queryClient, deleting.id);
       toast.success('Usuário excluído.');
       setDeleting(null);
     } catch (err) {
@@ -171,7 +174,7 @@ export default function Users() {
         onClose={() => setFormOpen(false)}
         onSaved={(saved) => {
           setFormOpen(false);
-          setData((current) => ({ users: [...(current?.users.filter((u) => u.id !== saved.id) ?? []), saved].sort((a, b) => a.name.localeCompare(b.name)) }));
+          upsertUserInCache(queryClient, saved);
         }}
       />
       <ConfirmDialog

@@ -5,11 +5,10 @@ import { Link } from 'react-router-dom';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { EmptyState, ErrorState, PageHeader, Segmented, Skeleton, StatCard, StatusBadge } from '../components/ui';
 import { useSession } from '../context/AuthContext';
-import { useApi } from '../hooks/useApi';
+import { useDashboard } from '../hooks/queries';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { buildSeries, getPeriodRange, percent, PeriodKey, PERIODS, sumValues } from '../lib/dashboard';
 import { formatNumber, formatTime } from '../lib/format';
-import { DashboardStatistics } from '../types';
 
 const STATUS_META = [
   { key: 'finished', label: 'Finalizados', color: 'var(--chart-1)' },
@@ -73,7 +72,7 @@ export default function Dashboard() {
   const { user, companyId, company } = useSession();
   const [period, setPeriod] = useState<PeriodKey>('90d');
   const range = useMemo(() => getPeriodRange(period), [period]);
-  const { data, loading, error, reload } = useApi<DashboardStatistics>('/dashboard/statistics', { company_id: companyId, ...range });
+  const { data, loading, error, reload } = useDashboard(companyId, range);
 
   const series = useMemo(
     () => (data ? buildSeries(data.details.attendances_by_day, data.details.patients_by_day, range.start_date, range.end_date) : []),

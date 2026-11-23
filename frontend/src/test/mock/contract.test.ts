@@ -169,13 +169,18 @@ describe('API interna: recursos', () => {
     const { data: created } = await api.post('/attendances', { patient_id: 1, user_id: 2, place_id: 1, start_date: '2030-01-10T13:00:00.000Z' });
     expect(created).toMatchObject({ receptionist_id: user.id, confirmed_at: null, end_date: null, patient: { id: 1 }, user: { id: 2 }, place: { id: 1 } });
 
+    await loginAs('medico');
     expect(await statusOf(api.put(`/attendances/${created.id}/finish`))).toMatchObject({
       status: 409,
       body: { error: 'Confirme o atendimento antes de finalizar.' },
     });
+
+    await loginAs('recepcao');
     const { data: confirmed } = await api.put(`/attendances/${created.id}/confirm`);
     expect(confirmed.confirmed_at).toBeTruthy();
     expect(await statusOf(api.put(`/attendances/${created.id}/confirm`))).toMatchObject({ status: 409 });
+
+    await loginAs('medico');
     const { data: finished } = await api.put(`/attendances/${created.id}/finish`);
     expect(finished.end_date).toBeTruthy();
     expect(
@@ -183,6 +188,33 @@ describe('API interna: recursos', () => {
     ).toMatchObject({
       status: 409,
     });
+  });
+
+  it('impede a recepção de finalizar e o médico de finalizar atendimento de outro profissional', async () => {
+    await loginAs('recepcao');
+    const { data: created } = await api.post('/attendances', { patient_id: 1, user_id: 2, place_id: 1, start_date: '2030-02-10T13:00:00.000Z' });
+    await api.put(`/attendances/${created.id}/confirm`);
+
+    expect(await statusOf(api.put(`/attendances/${created.id}/finish`))).toEqual({
+      status: 403,
+      body: { error: 'A recepção não pode finalizar atendimentos.' },
+    });
+
+    await loginAs('rafael.teixeira');
+    expect(await statusOf(api.put(`/attendances/${created.id}/finish`))).toEqual({
+      status: 403,
+      body: { error: 'Você só pode finalizar os próprios atendimentos.' },
+    });
+
+    await loginAs('visitante');
+    expect(await statusOf(api.put(`/attendances/${created.id}/finish`))).toEqual({
+      status: 403,
+      body: { error: 'Usuários visitantes podem apenas visualizar dados.' },
+    });
+
+    await loginAs('admin');
+    const { data: finished } = await api.put(`/attendances/${created.id}/finish`);
+    expect(finished.end_date).toBeTruthy();
   });
 
   it('recusa relacionamentos de outra clínica', async () => {

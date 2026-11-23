@@ -5,12 +5,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Avatar, Button, EmptyState, ErrorState, Skeleton, StatCard, StatusBadge } from '../components/ui';
 import { useSession } from '../context/AuthContext';
 import { PatientFormModal } from '../features/PatientFormModal';
-import { useApi } from '../hooks/useApi';
+import { useAttendances, usePatient } from '../hooks/queries';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateAfterPatientChange, upsertPatientInCache } from '../lib/queryApi';
 import { getStatus } from '../lib/attendance';
 import { calculateAge, formatCPF, formatDate, formatDateLocal, formatDateTime } from '../lib/format';
 import { canWrite } from '../lib/permissions';
-import { Attendance, Patient } from '../types';
 
 const dotColor = { scheduled: 'var(--color-info)', confirmed: 'var(--color-warning)', finished: 'var(--color-success)' };
 
@@ -18,8 +19,9 @@ export default function PatientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, companyId } = useSession();
-  const patient = useApi<Patient>(`/patients/${id}`);
-  const history = useApi<Attendance[]>('/attendances', { company_id: companyId, patient_id: id });
+  const patient = usePatient(id);
+  const history = useAttendances(companyId, { patient_id: id });
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   useDocumentTitle(patient.data?.name ?? 'Paciente');
 
@@ -187,7 +189,8 @@ export default function PatientDetails() {
         onClose={() => setEditing(false)}
         onSaved={(saved) => {
           setEditing(false);
-          patient.setData(() => saved);
+          upsertPatientInCache(queryClient, companyId, saved);
+          invalidateAfterPatientChange(queryClient);
         }}
       />
     </>

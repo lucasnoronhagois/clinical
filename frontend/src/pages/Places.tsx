@@ -5,9 +5,11 @@ import { Button, ConfirmDialog, EmptyState, ErrorState, Field, Modal, PageHeader
 import { useSession } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ReadOnlyBanner } from '../features/ReadOnlyBanner';
-import { useApi } from '../hooks/useApi';
+import { usePlaces } from '../hooks/queries';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useQueryClient } from '@tanstack/react-query';
 import { api, getErrorMessage, getFieldErrors } from '../lib/api';
+import { removePlaceFromCache, upsertPlaceInCache } from '../lib/queryApi';
 import { canWrite } from '../lib/permissions';
 import { Place } from '../types';
 
@@ -15,7 +17,8 @@ export default function Places() {
   useDocumentTitle('Locais');
   const { user, companyId } = useSession();
   const toast = useToast();
-  const { data, loading, error, reload, setData } = useApi<Place[]>('/places', { company_id: companyId });
+  const { data, loading, error, reload } = usePlaces(companyId);
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Place | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState('');
@@ -41,7 +44,7 @@ export default function Places() {
     try {
       const payload = { name: name.trim(), company_id: companyId };
       const { data: saved } = editing ? await api.put<Place>(`/places/${editing.id}`, payload) : await api.post<Place>('/places', payload);
-      setData((current) => [...(current?.filter((p) => p.id !== saved.id) ?? []), saved].sort((a, b) => a.name.localeCompare(b.name)));
+      upsertPlaceInCache(queryClient, companyId, saved);
       toast.success(editing ? 'Local atualizado.' : 'Local cadastrado.');
       setFormOpen(false);
     } catch (err) {
@@ -56,7 +59,7 @@ export default function Places() {
     setSaving(true);
     try {
       await api.delete(`/places/${deleting.id}`);
-      setData((current) => current?.filter((p) => p.id !== deleting.id) ?? null);
+      removePlaceFromCache(queryClient, companyId, deleting.id);
       toast.success('Local excluído.');
       setDeleting(null);
     } catch (err) {

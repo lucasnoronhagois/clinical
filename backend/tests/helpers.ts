@@ -23,7 +23,7 @@ export async function setupTestApp(): Promise<TestContext> {
   const app = createApp(sequelize, config);
 
   const tokens: Record<string, string> = {};
-  for (const login of ['admin', 'medico', 'recepcao', 'visitante', 'tiago.moreira']) {
+  for (const login of ['admin', 'medico', 'recepcao', 'visitante', 'tiago.moreira', 'rafael.teixeira']) {
     const res = await request(app).post('/api/auth/login').send({ email_or_login: login, password: DEMO_PASSWORD });
     tokens[login] = res.body.token;
   }

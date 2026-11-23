@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { RequireCompany, RequirePermission } from './components/layout/guards';
 import { AuthProvider } from './context/AuthContext';
+import { QueryProvider } from './context/QueryProvider';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { canManageUsers } from './lib/permissions';
@@ -63,12 +64,14 @@ export function AppRoutes() {
   );
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, queryClient }: { children: React.ReactNode; queryClient?: import('@tanstack/react-query').QueryClient }) {
   return (
     <MotionConfig reducedMotion="user">
       <ThemeProvider>
         <ToastProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <QueryProvider client={queryClient}>
+            <AuthProvider>{children}</AuthProvider>
+          </QueryProvider>
         </ToastProvider>
       </ThemeProvider>
     </MotionConfig>

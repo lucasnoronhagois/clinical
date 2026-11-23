@@ -4,12 +4,11 @@ import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Avatar, Button, EmptyState, ErrorState, Field, PageHeader, Segmented, TableSkeleton } from '../components/ui';
 import { useSession } from '../context/AuthContext';
-import { useApi } from '../hooks/useApi';
+import { useReports } from '../hooks/queries';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { percent } from '../lib/dashboard';
 import { getRoleLabel } from '../lib/permissions';
 import { toCsv } from '../lib/report';
-import { ReportRow } from '../types';
 
 type RoleFilter = 'DOCTOR' | 'RECEPTIONIST' | 'ALL';
 
@@ -23,7 +22,7 @@ export default function Reports() {
     () => ({ company_id: companyId, role, ...(invalidRange ? {} : Object.fromEntries(Object.entries(range).filter(([, v]) => v))) }),
     [companyId, role, range, invalidRange],
   );
-  const { data, loading, error, reload } = useApi<ReportRow[]>('/reports/attendances', params);
+  const { data, loading, error, reload } = useReports(companyId, params);
 
   const total = (data ?? []).reduce((acc, row) => acc + row.total_attendances, 0);
   const max = Math.max(1, ...(data ?? []).map((row) => row.total_attendances));

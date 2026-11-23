@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api, setUnauthorizedHandler, TOKEN_KEY } from '../lib/api';
 import { canSwitchCompany } from '../lib/permissions';
@@ -36,6 +37,7 @@ function readInitialState(): SessionState {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<SessionState>(readInitialState);
   const [company, setCompany] = useState<Company | null>(null);
 
@@ -44,7 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(COMPANY_KEY);
     setCompany(null);
     setState({ user: null, companyId: null });
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   useEffect(() => {
     setUnauthorizedHandler(logout);
@@ -72,29 +75,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [state.user, state.companyId, company?.id]);
 
-  const login = useCallback(async (identifier: string, password: string) => {
-    const { data } = await api.post<{ token: string }>('/auth/login', { email_or_login: identifier, password });
-    localStorage.setItem(TOKEN_KEY, data.token);
-    const user = sessionFromToken(data.token);
-    if (!user) throw new Error('Token inválido recebido da API.');
-    const companyId = canSwitchCompany(user) ? null : user.company_id;
-    localStorage.removeItem(COMPANY_KEY);
-    setCompany(null);
-    setState({ user, companyId });
-    return user;
-  }, []);
+  const login = useCallback(
+    async (identifier: string, password: string) => {
+      const { data } = await api.post<{ token: string }>('/auth/login', { email_or_login: identifier, password });
+      localStorage.setItem(TOKEN_KEY, data.token);
+      const user = sessionFromToken(data.token);
+      if (!user) throw new Error('Token inválido recebido da API.');
+      const companyId = canSwitchCompany(user) ? null : user.company_id;
+      localStorage.removeItem(COMPANY_KEY);
+      setCompany(null);
+      queryClient.clear();
+      setState({ user, companyId });
+      return user;
+    },
+    [queryClient],
+  );
 
-  const selectCompany = useCallback((selected: Company) => {
-    localStorage.setItem(COMPANY_KEY, String(selected.id));
-    setCompany(selected);
-    setState((current) => ({ ...current, companyId: selected.id }));
-  }, []);
+  const selectCompany = useCallback(
+    (selected: Company) => {
+      localStorage.setItem(COMPANY_KEY, String(selected.id));
+      queryClient.clear();
+      setCompany(selected);
+      setState((current) => ({ ...current, companyId: selected.id }));
+    },
+    [queryClient],
+  );
 
   const clearCompany = useCallback(() => {
     localStorage.removeItem(COMPANY_KEY);
     setCompany(null);
     setState((current) => ({ ...current, companyId: null }));
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const value = useMemo(
     () => ({ user: state.user, companyId: state.companyId, company, login, logout, selectCompany, clearCompany }),

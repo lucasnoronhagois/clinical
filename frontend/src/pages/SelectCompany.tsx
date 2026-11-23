@@ -8,8 +8,10 @@ import { Button, ConfirmDialog, EmptyState, ErrorState, PageHeader, Skeleton } f
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { CompanyFormModal } from '../features/CompanyFormModal';
-import { useApi } from '../hooks/useApi';
+import { useCompanies } from '../hooks/queries';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useQueryClient } from '@tanstack/react-query';
+import { removeCompanyFromCache, upsertCompanyInCache } from '../lib/queryApi';
 import { api, getErrorMessage } from '../lib/api';
 import { formatCEP } from '../lib/format';
 import { canSwitchCompany, getRoleLabel, isAdmin } from '../lib/permissions';
@@ -23,7 +25,8 @@ export default function SelectCompany() {
   const { user, selectCompany, logout } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
-  const { data, loading, error, reload, setData } = useApi<Company[]>(user ? '/companies' : null);
+  const queryClient = useQueryClient();
+  const { data, loading, error, reload } = useCompanies(Boolean(user));
   const [editing, setEditing] = useState<Company | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [deleting, setDeleting] = useState<Company | null>(null);
@@ -44,7 +47,7 @@ export default function SelectCompany() {
     setBusy(true);
     try {
       await api.delete(`/companies/${deleting.id}`);
-      setData((current) => current?.filter((c) => c.id !== deleting.id) ?? null);
+      removeCompanyFromCache(queryClient, deleting.id);
       toast.success('Clínica excluída.');
       setDeleting(null);
     } catch (err) {
@@ -182,10 +185,7 @@ export default function SelectCompany() {
         onClose={() => setFormOpen(false)}
         onSaved={(saved) => {
           setFormOpen(false);
-          setData((current) => {
-            const others = current?.filter((c) => c.id !== saved.id) ?? [];
-            return [...others, saved].sort((a, b) => a.name.localeCompare(b.name));
-          });
+          upsertCompanyInCache(queryClient, saved);
         }}
       />
       <ConfirmDialog

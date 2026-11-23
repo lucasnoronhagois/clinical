@@ -110,6 +110,25 @@ describe('Atendimentos', () => {
     expect((await create(ctx.tokens.visitante)).status).toBe(403);
   });
 
+
+  it('recepção não finaliza e o médico só finaliza os próprios atendimentos', async () => {
+    const { body } = await create(ctx.tokens.recepcao);
+    const confirmed = await request(ctx.app).put(`/api/attendances/${body.id}/confirm`).set(auth(ctx.tokens.recepcao));
+    expect(confirmed.status).toBe(200);
+
+    const reception = await request(ctx.app).put(`/api/attendances/${body.id}/finish`).set(auth(ctx.tokens.recepcao));
+    expect(reception.status).toBe(403);
+    expect(reception.body.error).toBe('A recepção não pode finalizar atendimentos.');
+
+    const otherDoctor = await request(ctx.app).put(`/api/attendances/${body.id}/finish`).set(auth(ctx.tokens['rafael.teixeira']));
+    expect(otherDoctor.status).toBe(403);
+    expect(otherDoctor.body.error).toBe('Você só pode finalizar os próprios atendimentos.');
+
+    const owner = await request(ctx.app).put(`/api/attendances/${body.id}/finish`).set(auth(ctx.tokens.medico));
+    expect(owner.status).toBe(200);
+    expect(owner.body.end_date).not.toBeNull();
+  });
+
   it('não expõe atendimento de outra clínica', async () => {
     const other = await request(ctx.app).get('/api/attendances?company_id=2').set(auth(ctx.tokens.admin));
     const res = await request(ctx.app).get(`/api/attendances/${other.body[0].id}`).set(auth(ctx.tokens.medico));

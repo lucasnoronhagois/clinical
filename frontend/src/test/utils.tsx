@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -41,20 +42,20 @@ export function signIn(user: Partial<SessionUser> = {}, companyId?: number) {
   if (companyId) localStorage.setItem(COMPANY_KEY, String(companyId));
 }
 
-export function renderApp(route: string) {
+export function renderApp(route: string, queryClient?: QueryClient) {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <Providers>
+      <Providers queryClient={queryClient}>
         <AppRoutes />
       </Providers>
     </MemoryRouter>,
   );
 }
 
-export function renderWithProviders(ui: ReactElement, route = '/') {
+export function renderWithProviders(ui: ReactElement, route = '/', queryClient?: QueryClient) {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <Providers>{ui}</Providers>
+      <Providers queryClient={queryClient}>{ui}</Providers>
     </MemoryRouter>,
   );
 }

@@ -46,7 +46,7 @@ export default class AttendanceController {
 
   async finish(req: Request, res: Response) {
     const attendance = await this.load(req);
-    res.json(await attendanceService.finish(attendance.id));
+    res.json(await attendanceService.finish(attendance.id, req.user!));
   }
 
   async delete(req: Request, res: Response) {

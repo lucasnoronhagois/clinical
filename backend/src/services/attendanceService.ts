@@ -97,8 +97,14 @@ export default class AttendanceService {
     return this.find(attendance.id);
   }
 
-  async finish(id: number | string) {
+  async finish(id: number | string, author: AuthUser) {
     const attendance = await this.find(id);
+    if (!author.root) {
+      if (author.role === 'RECEPTIONIST') throw HttpError.forbidden('A recepção não pode finalizar atendimentos.');
+      if (author.role !== 'DOCTOR' || attendance.user_id !== author.id) {
+        throw HttpError.forbidden('Você só pode finalizar os próprios atendimentos.');
+      }
+    }
     if (attendance.end_date) throw HttpError.conflict('Atendimento já finalizado.');
     if (!attendance.confirmed_at) throw HttpError.conflict('Confirme o atendimento antes de finalizar.');
     await attendance.update({ end_date: new Date() });
